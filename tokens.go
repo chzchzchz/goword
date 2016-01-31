@@ -8,7 +8,7 @@ import (
 )
 
 // GoTokens gets the tokens from set of source files.
-func GoTokens(srcpaths []string) (toks []string, err error) {
+func GoTokens(srcpaths []string) (toks map[string]struct{}, err error) {
 	tokc := make(chan []string)
 	errc := make(chan error)
 
@@ -19,7 +19,7 @@ func GoTokens(srcpaths []string) (toks []string, err error) {
 		if serr != nil {
 			break
 		}
-		f := fs.AddFile(path, 0, int(st.Size()))
+		f := fs.AddFile(path, fs.Base(), int(st.Size()))
 		go func(tf *token.File) {
 			s, e := fileTokens(tf)
 			tokc <- s
@@ -28,11 +28,11 @@ func GoTokens(srcpaths []string) (toks []string, err error) {
 		files++
 	}
 
-	tokmap := make(map[string]struct{})
+	toks = make(map[string]struct{})
 	for i := 0; i < files; i++ {
 		if curToks := <-tokc; curToks != nil {
 			for _, tok := range curToks {
-				tokmap[tok] = struct{}{}
+				toks[tok] = struct{}{}
 			}
 		}
 		if curErr := <-errc; curErr != nil {
@@ -40,9 +40,6 @@ func GoTokens(srcpaths []string) (toks []string, err error) {
 		}
 	}
 
-	for tok, _ := range tokmap {
-		toks = append(toks, tok)
-	}
 	return toks, err
 }
 
@@ -58,6 +55,10 @@ func fileTokens(tf *token.File) (toks []string, err error) {
 		_, tok, lit := s.Scan()
 		if tok == token.EOF {
 			break
+		}
+		if tok == token.STRING {
+			// XXX: what if strings are misspelled?
+			lit = lit[1 : len(lit)-1]
 		}
 		tokmap[lit] = struct{}{}
 	}

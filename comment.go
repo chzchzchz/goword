@@ -8,7 +8,8 @@ import (
 )
 
 type CommentToken struct {
-	pos token.Pos
+	pos token.Position
+	p   token.Pos
 	tok token.Token
 	lit string
 }
@@ -20,7 +21,7 @@ func GoCommentChan(srcpath string) (chan *CommentToken, error) {
 	if err != nil {
 		return nil, err
 	}
-	tf := fs.AddFile(srcpath, 0, int(st.Size()))
+	tf := fs.AddFile(srcpath, fs.Base(), int(st.Size()))
 	src, err := ioutil.ReadFile(tf.Name())
 	if err != nil {
 		return nil, err
@@ -35,7 +36,16 @@ func GoCommentChan(srcpath string) (chan *CommentToken, error) {
 			if t == token.EOF {
 				break
 			}
-			commc <- &CommentToken{p, t, l}
+			if t != token.COMMENT {
+				continue
+			}
+			// TODO know comment's context
+			// * before function
+			// * before type
+			// * before global
+			// * before struct field
+			// * inside function
+			commc <- &CommentToken{tf.Position(p), p, t, l}
 		}
 		close(commc)
 	}()
