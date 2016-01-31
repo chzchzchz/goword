@@ -13,7 +13,7 @@ type docCheck struct {
 
 func (dc *docCheck) get(t *testing.T, path string) *docCheck {
 	if len(dc.ct) == 0 {
-		sp, err := NewSpellcheck()
+		sp, err := NewSpellcheck("")
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"regexp"
 	"strings"
 	"sync"
@@ -11,24 +12,24 @@ import (
 type Spellcheck struct {
 	speller aspell.Speller
 	toks    map[string]struct{}
+	ignores map[string]struct{}
 	mu      sync.Mutex
+	reURL   *regexp.Regexp
+	reTODO  *regexp.Regexp
 }
 
-var (
-	ignores = map[string]struct{}{
-		"TODO":       struct{}{},
-		"WWW":        struct{}{},
-		"AS IS":      struct{}{},
-		"GC":         struct{}{},
-		"API":        struct{}{},
-		"SHA":        struct{}{},
-		"golang":     struct{}{},
-		"goroutine":  struct{}{},
-		"goroutines": struct{}{},
+func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
+	ignmap := make(map[string]struct{})
+	if ignoreFile != "" {
+		igns, rerr := ioutil.ReadFile(ignoreFile)
+		if rerr != nil {
+			return nil, rerr
+		}
+		for _, word := range strings.Fields(string(igns)) {
+			ignmap[word] = struct{}{}
+		}
 	}
-)
 
-func NewSpellcheck() (sc *Spellcheck, err error) {
 	opts := map[string]string{
 		"lang":           "en",
 		"filter":         "url",
@@ -39,7 +40,11 @@ func NewSpellcheck() (sc *Spellcheck, err error) {
 		"ignore-case":    "false",
 		"ignore-accents": "false",
 	}
-	sc = &Spellcheck{}
+	sc = &Spellcheck{
+		reURL:   regexp.MustCompile("http(s|):[^ ]*"),
+		reTODO:  regexp.MustCompile("TODO[ ]*\\([a-z]*"),
+		ignores: ignmap,
+	}
 	sc.speller, err = aspell.NewSpeller(opts)
 	if err != nil {
 		return nil, err
@@ -103,12 +108,9 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CommentToken, error) {
 	return *badcomms, err
 }
 
-func tokenize(s string) []string {
-	re, err := regexp.Compile("http(s|):[^ ]*")
-	if err != nil {
-		panic("bad regexp")
-	}
-	s = string(re.ReplaceAll([]byte(s), []byte("")))
+func (sc *Spellcheck) tokenize(s string) []string {
+	s = string(sc.reURL.ReplaceAll([]byte(s), []byte("")))
+	s = string(sc.reTODO.ReplaceAll([]byte(s), []byte("")))
 	x := []string{
 		".", "`", "\"", ",", "!", "?",
 		";", ")", "(", "/", ":", "=",
@@ -122,7 +124,7 @@ func tokenize(s string) []string {
 }
 
 func (sc *Spellcheck) isGoodWord(word string) bool {
-	if _, ok := ignores[word]; ok {
+	if _, ok := sc.ignores[word]; ok {
 		return true
 	}
 	lower := strings.ToLower(word)
@@ -142,7 +144,7 @@ func (sc *Spellcheck) isGoodWord(word string) bool {
 }
 
 func (sc *Spellcheck) badComment(ct *CommentToken) bool {
-	for _, word := range tokenize(ct.lit) {
+	for _, word := range sc.tokenize(ct.lit) {
 		if sc.isGoodWord(word) {
 			continue
 		}
@@ -152,7 +154,7 @@ func (sc *Spellcheck) badComment(ct *CommentToken) bool {
 }
 
 func (sc *Spellcheck) Suggest(s string) string {
-	for _, word := range tokenize(s) {
+	for _, word := range sc.tokenize(s) {
 		if sc.isGoodWord(word) {
 			continue
 		}
