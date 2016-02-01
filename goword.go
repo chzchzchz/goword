@@ -27,7 +27,11 @@ func main() {
 		os.Exit(1)
 	}
 	for _, c := range ct {
-		sugg := sp.Suggest(c.lit)
-		fmt.Printf("%s.%d: %s (%s?)\n", c.pos.Filename, c.pos.Line, c.lit, sugg)
+		fmt.Printf("%s.%d: %s (%s -> %s?)\n",
+			c.ctok.pos.Filename,
+			c.ctok.pos.Line,
+			c.ctok.lit,
+			c.words[0].word,
+			c.words[0].suggest)
 	}
 }

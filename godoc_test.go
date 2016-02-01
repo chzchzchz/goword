@@ -8,7 +8,7 @@ import (
 var godocChk docCheck
 
 type docCheck struct {
-	ct []*CommentToken
+	ct []*CheckedToken
 }
 
 func (dc *docCheck) get(t *testing.T, path string) *docCheck {
@@ -56,15 +56,15 @@ func TestGoDocNoFieldNameReject(t *testing.T) {
 // TestGoDocFuncPass will not trigger a warning
 func TestGoDocFuncPass(t *testing.T) {
 	for _, ct := range godocChk.get(t, "godoc_test.go").ct {
-		if strings.Contains(ct.lit, "TestGoDocFuncPass") {
-			t.Fatalf("unexpected error %v", ct.lit)
+		if strings.Contains(ct.ctok.lit, "TestGoDocFuncPass") {
+			t.Fatalf("unexpected error %v", ct.ctok.lit)
 		}
 	}
 }
 
 func goDocReject(t *testing.T, f string) {
 	for _, ct := range godocChk.get(t, "godoc_test.go").ct {
-		if strings.Contains(ct.lit, f) {
+		if strings.Contains(ct.ctok.lit, f) {
 			return
 		}
 	}

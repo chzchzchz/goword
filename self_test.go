@@ -17,12 +17,12 @@ func TestSelfPass(t *testing.T) {
 	cts, err := sp.Check(paths)
 	rejects := 0
 	for _, ct := range cts {
-		if strings.Contains(ct.lit, "Reject") {
+		if strings.Contains(ct.ctok.lit, "Reject") {
 			// reject test cases will give false positives
 			rejects++
 			continue
 		}
-		t.Errorf("flagged %s", ct.lit)
+		t.Errorf("flagged %s", ct.ctok.lit)
 	}
 	if rejects == 0 {
 		t.Errorf("expected rejects from tests")

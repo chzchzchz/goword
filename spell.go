@@ -21,6 +21,16 @@ type Spellcheck struct {
 
 type CheckFunc func(string) bool
 
+type CheckedWord struct {
+	word    string
+	suggest string
+}
+
+type CheckedToken struct {
+	ctok  *CommentToken
+	words []CheckedWord
+}
+
 func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 	ignmap := make(map[string]struct{})
 	if ignoreFile != "" {
@@ -112,7 +122,7 @@ func (sc *Spellcheck) WithASpell() CheckFunc {
 	}
 }
 
-func (sc *Spellcheck) Check(srcpaths []string) ([]*CommentToken, error) {
+func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedToken, error) {
 	toks, err := GoTokens(srcpaths)
 	if err != nil {
 		return nil, err
@@ -124,8 +134,8 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CommentToken, error) {
 	}
 
 	errc := make(chan error)
-	badcommc := make(chan *CommentToken)
-	badcomms := &[]*CommentToken{}
+	badcommc := make(chan *CheckedToken)
+	badcomms := &[]*CheckedToken{}
 	go func() {
 		for comm := range badcommc {
 			*badcomms = append(*badcomms, comm)
@@ -142,8 +152,8 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CommentToken, error) {
 				return
 			}
 			for comm := range commc {
-				if sc.badComment(comm) {
-					badcommc <- comm
+				if ct := sc.checkComment(comm); ct != nil {
+					badcommc <- ct
 				}
 			}
 			errc <- nil
@@ -164,25 +174,18 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CommentToken, error) {
 	return *badcomms, err
 }
 
-func (sc *Spellcheck) Suggest(s string) string {
-	for _, word := range sc.tokenize(s) {
-		if sc.check(word) {
-			continue
-		}
-		// aspell's check isn't thread-safe-- why!?
-		sc.mu.Lock()
-		aspell_ok := sc.speller.Check(word)
-		sc.mu.Unlock()
-		if !aspell_ok {
-			sc.mu.Lock()
-			suggest := sc.speller.Suggest(word)
-			sc.mu.Unlock()
-			if len(suggest) > 0 {
-				return word + " -> " + suggest[0]
-			}
-		}
+func (sc *Spellcheck) suggest(word string) string {
+	if sc.check(word) {
+		return ""
 	}
-	return ""
+	// aspell's check isn't thread-safe-- why!?
+	sc.mu.Lock()
+	suggest := sc.speller.Suggest(word)
+	sc.mu.Unlock()
+	if len(suggest) == 0 {
+		return ""
+	}
+	return suggest[0]
 }
 
 func (sc *Spellcheck) tokenize(s string) []string {
@@ -200,12 +203,15 @@ func (sc *Spellcheck) tokenize(s string) []string {
 	return strings.Fields(s)
 }
 
-func (sc *Spellcheck) badComment(ct *CommentToken) bool {
+func (sc *Spellcheck) checkComment(ct *CommentToken) (ret *CheckedToken) {
 	for _, word := range sc.tokenize(ct.lit) {
 		if sc.check(word) {
 			continue
 		}
-		return true
+		if ret == nil {
+			ret = &CheckedToken{ct, nil}
+		}
+		ret.words = append(ret.words, CheckedWord{word, sc.suggest(word)})
 	}
-	return false
+	return ret
 }
