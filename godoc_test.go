@@ -63,10 +63,5 @@ func TestGoDocFuncPass(t *testing.T) {
 }
 
 func goDocReject(t *testing.T, f string) {
-	for _, ct := range godocChk.get(t, "godoc_test.go").ct {
-		if strings.Contains(ct.ctok.lit, f) {
-			return
-		}
-	}
-	t.Fatal("did not flag bad godoc")
+	reject(t, "godoc_test.go", f)
 }

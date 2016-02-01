@@ -130,7 +130,9 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedToken, error) {
 
 	sc.toks = make(map[string]struct{})
 	for k, _ := range toks {
-		sc.toks[strings.ToLower(k)] = struct{}{}
+		for _, field := range strings.Fields(k) {
+			sc.toks[strings.ToLower(field)] = struct{}{}
+		}
 	}
 
 	errc := make(chan error)
