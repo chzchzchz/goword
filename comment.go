@@ -39,7 +39,7 @@ func GoCommentChan(srcpath string) (chan *CommentToken, error) {
 			if t != token.COMMENT {
 				continue
 			}
-			// TODO know comment's context
+			// would be nice to know comment's context
 			// * before function
 			// * before type
 			// * before global

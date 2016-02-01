@@ -13,10 +13,13 @@ type Spellcheck struct {
 	speller aspell.Speller
 	toks    map[string]struct{}
 	ignores map[string]struct{}
+	check   CheckFunc
 	mu      sync.Mutex
 	reURL   *regexp.Regexp
 	reTODO  *regexp.Regexp
 }
+
+type CheckFunc func(string) bool
 
 func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 	ignmap := make(map[string]struct{})
@@ -40,20 +43,73 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 		"ignore-case":    "false",
 		"ignore-accents": "false",
 	}
+
+	speller, err := aspell.NewSpeller(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	sc = &Spellcheck{
 		reURL:   regexp.MustCompile("http(s|):[^ ]*"),
 		reTODO:  regexp.MustCompile("TODO[ ]*\\([a-z]*"),
 		ignores: ignmap,
+		speller: speller,
 	}
-	sc.speller, err = aspell.NewSpeller(opts)
-	if err != nil {
-		return nil, err
+
+	checks := []CheckFunc{
+		sc.WithPassTokens(),
+		sc.WithPassIgnores(),
+		sc.WithPassNumbers(),
+		sc.WithASpell(),
+	}
+	sc.check = func(w string) bool {
+		for _, chk := range checks {
+			if chk(w) {
+				return true
+			}
+		}
+		return false
 	}
 	return sc, nil
 }
 
 func (sc *Spellcheck) Close() {
 	defer sc.speller.Delete()
+}
+
+func (sc *Spellcheck) WithPassTokens() CheckFunc {
+	return func(word string) bool {
+		_, ok := sc.toks[strings.ToLower(word)]
+		return ok
+	}
+}
+
+func (sc *Spellcheck) WithPassIgnores() CheckFunc {
+	return func(word string) bool {
+		_, ok := sc.ignores[word]
+		return ok
+	}
+}
+
+func (sc *Spellcheck) WithPassNumbers() CheckFunc {
+	return func(word string) bool {
+		// contains a number?
+		for i := 0; i < len(word); i++ {
+			if word[i] >= '0' && word[i] <= '9' {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func (sc *Spellcheck) WithASpell() CheckFunc {
+	return func(word string) bool {
+		// aspell's check isn't thread-safe-- why!?
+		sc.mu.Lock()
+		defer sc.mu.Unlock()
+		return sc.speller.Check(word)
+	}
 }
 
 func (sc *Spellcheck) Check(srcpaths []string) ([]*CommentToken, error) {
@@ -108,54 +164,9 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CommentToken, error) {
 	return *badcomms, err
 }
 
-func (sc *Spellcheck) tokenize(s string) []string {
-	s = string(sc.reURL.ReplaceAll([]byte(s), []byte("")))
-	s = string(sc.reTODO.ReplaceAll([]byte(s), []byte("")))
-	x := []string{
-		".", "`", "\"", ",", "!", "?",
-		";", ")", "(", "/", ":", "=",
-		"*", "-", ">", "]", "[", "_",
-		"|", "{", "}", "+", "\t", "' ",
-		" '", "&", "<", "'s "}
-	for _, v := range x {
-		s = strings.Replace(s, v, " ", -1)
-	}
-	return strings.Fields(s)
-}
-
-func (sc *Spellcheck) isGoodWord(word string) bool {
-	if _, ok := sc.ignores[word]; ok {
-		return true
-	}
-	lower := strings.ToLower(word)
-	if _, ok := sc.toks[lower]; ok {
-		return true
-	}
-	for i := 0; i < len(word); i++ {
-		if word[i] >= '0' && word[i] <= '9' {
-			return true
-		}
-	}
-	// aspell's check isn't thread-safe-- why!?
-	sc.mu.Lock()
-	aspell_ok := sc.speller.Check(word)
-	sc.mu.Unlock()
-	return aspell_ok
-}
-
-func (sc *Spellcheck) badComment(ct *CommentToken) bool {
-	for _, word := range sc.tokenize(ct.lit) {
-		if sc.isGoodWord(word) {
-			continue
-		}
-		return true
-	}
-	return false
-}
-
 func (sc *Spellcheck) Suggest(s string) string {
 	for _, word := range sc.tokenize(s) {
-		if sc.isGoodWord(word) {
+		if sc.check(word) {
 			continue
 		}
 		// aspell's check isn't thread-safe-- why!?
@@ -172,4 +183,29 @@ func (sc *Spellcheck) Suggest(s string) string {
 		}
 	}
 	return ""
+}
+
+func (sc *Spellcheck) tokenize(s string) []string {
+	s = string(sc.reURL.ReplaceAll([]byte(s), []byte("")))
+	s = string(sc.reTODO.ReplaceAll([]byte(s), []byte("")))
+	x := []string{
+		".", "`", "\"", ",", "!", "?",
+		";", ")", "(", "/", ":", "=",
+		"*", "-", ">", "]", "[", "_",
+		"|", "{", "}", "+", "\t", "' ",
+		" '", "&", "<", "'s "}
+	for _, v := range x {
+		s = strings.Replace(s, v, " ", -1)
+	}
+	return strings.Fields(s)
+}
+
+func (sc *Spellcheck) badComment(ct *CommentToken) bool {
+	for _, word := range sc.tokenize(ct.lit) {
+		if sc.check(word) {
+			continue
+		}
+		return true
+	}
+	return false
 }

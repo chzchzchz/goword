@@ -27,21 +27,46 @@ func (dc *docCheck) get(t *testing.T, path string) *docCheck {
 	return dc
 }
 
-// this will trigger a warning that the first word isn't the function name
-func TestGoDocBadFirstWord(t *testing.T) {
+// this will trigger a warning that TestGoDocNoFuncNameReject isn't the function name
+func TestGoDocNoFuncNameReject(t *testing.T) {
+	goDocReject(t, "TestGoDocNoFuncNameReject")
+}
+
+// TestGoDocNoFuncNameReject has the wrong function name
+func TestGoDocWrongFuncNameReject(t *testing.T) {
+	goDocReject(t, "TestGoDocWrongFuncNameReject")
+}
+
+// this will trigger TestGoDocNoTypeNameReject
+type godocStructReject struct {
+	// this will trigger TestGoDocNoFieldNameReject
+	oopsie int
+}
+
+// TestGoDocNoTypeNameReject rejects a type missing name in comments
+func TestGoDocNoTypeNameReject(t *testing.T) {
+	goDocReject(t, "TestGoDocNoFuncNameReject")
+}
+
+// TestGoDocNoFieldNameReject rejects a field missing name in comments
+func TestGoDocNoFieldNameReject(t *testing.T) {
+	goDocReject(t, "TestGoDocNoFieldNameReject")
+}
+
+// TestGoDocFuncPass will not trigger a warning
+func TestGoDocFuncPass(t *testing.T) {
 	for _, ct := range godocChk.get(t, "godoc_test.go").ct {
-		if strings.Contains(ct.lit, "this will trigger") {
+		if strings.Contains(ct.lit, "TestGoDocFuncPass") {
+			t.Fatalf("unexpected error %v", ct.lit)
+		}
+	}
+}
+
+func goDocReject(t *testing.T, f string) {
+	for _, ct := range godocChk.get(t, "godoc_test.go").ct {
+		if strings.Contains(ct.lit, f) {
 			return
 		}
 	}
 	t.Fatal("did not flag bad godoc")
-}
-
-// TestGoDocGood will not trigger a warning
-func TestGoDocGood(t *testing.T) {
-	for _, ct := range godocChk.get(t, "godoc_test.go").ct {
-		if strings.Contains(ct.lit, "TestGoodGoDoc will") {
-			t.Fatalf("unexpected error %v", ct.lit)
-		}
-	}
 }
