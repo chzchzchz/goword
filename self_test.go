@@ -22,7 +22,10 @@ func TestSelfPass(t *testing.T) {
 			rejects++
 			continue
 		}
-		t.Errorf("flagged %s", ct.ctok.lit)
+		t.Errorf("flagged %s (%s:%d)",
+			ct.ctok.lit,
+			ct.ctok.pos.Filename,
+			ct.ctok.pos.Line)
 	}
 	if rejects == 0 {
 		t.Errorf("expected rejects from tests")
