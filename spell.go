@@ -12,7 +12,6 @@ import (
 type Spellcheck struct {
 	speller aspell.Speller
 	toks    map[string]struct{}
-	ignores map[string]struct{}
 	check   CheckFunc
 	mu      sync.Mutex
 	reURL   *regexp.Regexp
@@ -32,17 +31,6 @@ type CheckedLexeme struct {
 }
 
 func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
-	ignmap := make(map[string]struct{})
-	if ignoreFile != "" {
-		igns, rerr := ioutil.ReadFile(ignoreFile)
-		if rerr != nil {
-			return nil, rerr
-		}
-		for _, word := range strings.Fields(string(igns)) {
-			ignmap[word] = struct{}{}
-		}
-	}
-
 	opts := map[string]string{
 		"lang":           "en",
 		"filter":         "url",
@@ -54,6 +42,11 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 		"ignore-accents": "false",
 	}
 
+	igns, err := WithPassIgnores(ignoreFile)
+	if err != nil {
+		return nil, err
+	}
+
 	speller, err := aspell.NewSpeller(opts)
 	if err != nil {
 		return nil, err
@@ -62,14 +55,13 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 	sc = &Spellcheck{
 		reURL:   regexp.MustCompile("http(s|):[^ ]*"),
 		reTODO:  regexp.MustCompile("TODO[ ]*\\([a-z]*"),
-		ignores: ignmap,
 		speller: speller,
 	}
 
 	checks := []CheckFunc{
 		sc.WithPassTokens(),
-		sc.WithPassIgnores(),
-		sc.WithPassNumbers(),
+		igns,
+		WithPassNumbers(),
 		sc.WithASpell(),
 	}
 	sc.check = func(w string) bool {
@@ -94,14 +86,24 @@ func (sc *Spellcheck) WithPassTokens() CheckFunc {
 	}
 }
 
-func (sc *Spellcheck) WithPassIgnores() CheckFunc {
-	return func(word string) bool {
-		_, ok := sc.ignores[word]
-		return ok
+func WithPassIgnores(ignoreFile string) (CheckFunc, error) {
+	ignmap := make(map[string]struct{})
+	if ignoreFile != "" {
+		igns, rerr := ioutil.ReadFile(ignoreFile)
+		if rerr != nil {
+			return nil, rerr
+		}
+		for _, word := range strings.Fields(string(igns)) {
+			ignmap[word] = struct{}{}
+		}
 	}
+	return func(word string) bool {
+		_, ok := ignmap[word]
+		return ok
+	}, nil
 }
 
-func (sc *Spellcheck) WithPassNumbers() CheckFunc {
+func WithPassNumbers() CheckFunc {
 	return func(word string) bool {
 		// contains a number?
 		for i := 0; i < len(word); i++ {

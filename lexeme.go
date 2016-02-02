@@ -15,7 +15,7 @@ type Lexeme struct {
 	prev *Lexeme
 }
 
-// LexemeChan streams lexemes from a source file.
+// LexemeChan streams a source file
 func LexemeChan(srcpath string) (chan *Lexeme, error) {
 	fs := token.NewFileSet()
 	st, err := os.Stat(srcpath)
