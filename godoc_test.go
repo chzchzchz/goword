@@ -1,14 +1,11 @@
 package main
 
 import (
-	"strings"
 	"testing"
 )
 
-var godocChk docCheck
-
 type docCheck struct {
-	ct []*CheckedToken
+	ct []*CheckedLexeme
 }
 
 func (dc *docCheck) get(t *testing.T, path string) *docCheck {
@@ -55,11 +52,7 @@ func TestGoDocNoFieldNameReject(t *testing.T) {
 
 // TestGoDocFuncPass will not trigger a warning
 func TestGoDocFuncPass(t *testing.T) {
-	for _, ct := range godocChk.get(t, "godoc_test.go").ct {
-		if strings.Contains(ct.ctok.lit, "TestGoDocFuncPass") {
-			t.Fatalf("unexpected error %v", ct.ctok.lit)
-		}
-	}
+	accept(t, "godoc_test.go", "TestGoDocFuncPass")
 }
 
 // TestGoDocMultiLinePass should pass
@@ -67,4 +60,3 @@ func TestGoDocFuncPass(t *testing.T) {
 func TestGoDocMultiLinePass(t *testing.T) {
 	accept(t, "godoc_test.go", "TestGoDocMultiLinePass")
 }
-

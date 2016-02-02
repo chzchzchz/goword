@@ -26,8 +26,8 @@ type CheckedWord struct {
 	suggest string
 }
 
-type CheckedToken struct {
-	ctok  *CommentToken
+type CheckedLexeme struct {
+	ctok  *Lexeme
 	words []CheckedWord
 }
 
@@ -122,7 +122,7 @@ func (sc *Spellcheck) WithASpell() CheckFunc {
 	}
 }
 
-func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedToken, error) {
+func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedLexeme, error) {
 	toks, err := GoTokens(srcpaths)
 	if err != nil {
 		return nil, err
@@ -136,8 +136,8 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedToken, error) {
 	}
 
 	errc := make(chan error)
-	badcommc := make(chan *CheckedToken)
-	badcomms := &[]*CheckedToken{}
+	badcommc := make(chan *CheckedLexeme)
+	badcomms := &[]*CheckedLexeme{}
 	go func() {
 		for comm := range badcommc {
 			*badcomms = append(*badcomms, comm)
@@ -148,13 +148,13 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedToken, error) {
 	// process all comments
 	for _, p := range srcpaths {
 		go func(path string) {
-			commc, cerr := GoCommentChan(path)
+			commc, cerr := CommentChan(path)
 			if cerr != nil {
 				errc <- cerr
 				return
 			}
 			for comm := range commc {
-				if ct := sc.checkComment(comm); ct != nil {
+				if ct := sc.checkLexeme(comm); ct != nil {
 					badcommc <- ct
 				}
 			}
@@ -205,13 +205,13 @@ func (sc *Spellcheck) tokenize(s string) []string {
 	return strings.Fields(s)
 }
 
-func (sc *Spellcheck) checkComment(ct *CommentToken) (ret *CheckedToken) {
+func (sc *Spellcheck) checkLexeme(ct *Lexeme) (ret *CheckedLexeme) {
 	for _, word := range sc.tokenize(ct.lit) {
 		if sc.check(word) {
 			continue
 		}
 		if ret == nil {
-			ret = &CheckedToken{ct, nil}
+			ret = &CheckedLexeme{ct, nil}
 		}
 		ret.words = append(ret.words, CheckedWord{word, sc.suggest(word)})
 	}

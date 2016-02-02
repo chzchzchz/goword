@@ -1,0 +1,49 @@
+package main
+
+import (
+	"go/scanner"
+	"go/token"
+	"io/ioutil"
+	"os"
+)
+
+type Lexeme struct {
+	pos  token.Position
+	p    token.Pos
+	tok  token.Token
+	lit  string
+	prev *Lexeme
+}
+
+// LexemeChan streams lexemes from a source file.
+func LexemeChan(srcpath string) (chan *Lexeme, error) {
+	fs := token.NewFileSet()
+	st, err := os.Stat(srcpath)
+	if err != nil {
+		return nil, err
+	}
+	tf := fs.AddFile(srcpath, fs.Base(), int(st.Size()))
+	src, err := ioutil.ReadFile(tf.Name())
+	if err != nil {
+		return nil, err
+	}
+	s := &scanner.Scanner{}
+	s.Init(tf, src, nil, scanner.ScanComments)
+
+	lexc := make(chan *Lexeme)
+	go func() {
+		var prev *Lexeme
+		defer close(lexc)
+		for {
+			p, t, lit := s.Scan()
+			if t == token.EOF {
+				return
+			}
+			lexeme := &Lexeme{tf.Position(p), p, t, lit, prev}
+			lexc <- lexeme
+			prev = lexeme
+		}
+	}()
+
+	return lexc, nil
+}
