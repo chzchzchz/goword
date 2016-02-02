@@ -29,12 +29,12 @@ func (dc *docCheck) get(t *testing.T, path string) *docCheck {
 
 // this will trigger a warning that TestGoDocNoFuncNameReject isn't the function name
 func TestGoDocNoFuncNameReject(t *testing.T) {
-	goDocReject(t, "TestGoDocNoFuncNameReject")
+	reject(t, "godoc_test.go", "TestGoDocNoFuncNameReject")
 }
 
 // TestGoDocNoFuncNameReject has the wrong function name
 func TestGoDocWrongFuncNameReject(t *testing.T) {
-	goDocReject(t, "TestGoDocWrongFuncNameReject")
+	reject(t, "godoc_test.go", "TestGoDocWrongFuncNameReject")
 }
 
 // this will trigger TestGoDocNoTypeNameReject
@@ -45,12 +45,12 @@ type godocStructReject struct {
 
 // TestGoDocNoTypeNameReject rejects a type missing name in comments
 func TestGoDocNoTypeNameReject(t *testing.T) {
-	goDocReject(t, "TestGoDocNoFuncNameReject")
+	reject(t, "godoc_test.go", "TestGoDocNoFuncNameReject")
 }
 
 // TestGoDocNoFieldNameReject rejects a field missing name in comments
 func TestGoDocNoFieldNameReject(t *testing.T) {
-	goDocReject(t, "TestGoDocNoFieldNameReject")
+	reject(t, "godoc_test.go", "TestGoDocNoFieldNameReject")
 }
 
 // TestGoDocFuncPass will not trigger a warning
@@ -62,6 +62,9 @@ func TestGoDocFuncPass(t *testing.T) {
 	}
 }
 
-func goDocReject(t *testing.T, f string) {
-	reject(t, "godoc_test.go", f)
+// TestGoDocMultiLinePass should pass
+// even though this is a multiple line comment
+func TestGoDocMultiLinePass(t *testing.T) {
+	accept(t, "godoc_test.go", "TestGoDocMultiLinePass")
 }
+
