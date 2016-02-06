@@ -14,8 +14,7 @@ type Spellcheck struct {
 	toks    map[string]struct{}
 	check   CheckFunc
 	mu      sync.Mutex
-	reURL   *regexp.Regexp
-	reTODO  *regexp.Regexp
+	strips  []*regexp.Regexp
 }
 
 type CheckFunc func(string) bool
@@ -52,9 +51,13 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 		return nil, err
 	}
 
+	strips := []*regexp.Regexp{
+		regexp.MustCompile("http(s|):[^ ]*"),
+		regexp.MustCompile("TODO[ ]*\\([a-z]*"),
+	}
+
 	sc = &Spellcheck{
-		reURL:   regexp.MustCompile("http(s|):[^ ]*"),
-		reTODO:  regexp.MustCompile("TODO[ ]*\\([a-z]*"),
+		strips:  strips,
 		speller: speller,
 	}
 
@@ -64,6 +67,7 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 		WithPassNumbers(),
 		sc.WithASpell(),
 	}
+
 	sc.check = func(w string) bool {
 		for _, chk := range checks {
 			if chk(w) {
@@ -193,8 +197,9 @@ func (sc *Spellcheck) suggest(word string) string {
 }
 
 func (sc *Spellcheck) tokenize(s string) []string {
-	s = string(sc.reURL.ReplaceAll([]byte(s), []byte("")))
-	s = string(sc.reTODO.ReplaceAll([]byte(s), []byte("")))
+	for _, re := range sc.strips {
+		s = string(re.ReplaceAll([]byte(s), []byte("")))
+	}
 	x := []string{
 		".", "`", "\"", ",", "!", "?",
 		";", ")", "(", "/", ":", "=",
