@@ -47,3 +47,30 @@ func LexemeChan(srcpath string) (chan *Lexeme, error) {
 
 	return lexc, nil
 }
+
+func Filter(lc chan *Lexeme, f func(*Lexeme) bool) chan *Lexeme {
+	retc := make(chan *Lexeme)
+	go func() {
+		for l := range lc {
+			if f(l) {
+				retc <- l
+			} else {
+				l.prev = nil
+			}
+		}
+		close(retc)
+	}()
+	return retc
+}
+
+// CommentChan streams the comment tokens from a source file.
+func CommentChan(srcpath string) (chan *Lexeme, error) {
+	ch, err := LexemeChan(srcpath)
+	if err != nil {
+		return nil, err
+	}
+	return Filter(ch,
+		func(l *Lexeme) bool {
+			return l.tok == token.COMMENT
+		}), nil
+}
