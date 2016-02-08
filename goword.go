@@ -27,10 +27,11 @@ func main() {
 		os.Exit(1)
 	}
 	for _, c := range ct {
-		fmt.Printf("%s.%d: %s (%s -> %s?)\n",
+		fmt.Printf("%s.%d: %s (%s: %s -> %s?)\n",
 			c.ctok.pos.Filename,
 			c.ctok.pos.Line,
 			c.ctok.lit,
+			c.rule,
 			c.words[0].word,
 			c.words[0].suggest)
 	}

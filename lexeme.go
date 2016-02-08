@@ -104,7 +104,6 @@ func LexemeMux(lc <-chan *Lexeme, n int) []chan *Lexeme {
 			for i := 0; i < n; i++ {
 				ret[i] <- l
 			}
-
 		}
 		for i := 0; i < n; i++ {
 			close(ret[i])

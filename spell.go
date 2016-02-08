@@ -1,8 +1,6 @@
 package main
 
 import (
-	"go/token"
-	"io/ioutil"
 	"regexp"
 	"strings"
 	"sync"
@@ -16,18 +14,6 @@ type Spellcheck struct {
 	check   CheckFunc
 	mu      sync.Mutex
 	strips  []*regexp.Regexp
-}
-
-type CheckFunc func(string) bool
-
-type CheckedWord struct {
-	word    string
-	suggest string
-}
-
-type CheckedLexeme struct {
-	ctok  *Lexeme
-	words []CheckedWord
 }
 
 func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
@@ -91,35 +77,6 @@ func (sc *Spellcheck) WithPassTokens() CheckFunc {
 	}
 }
 
-func WithPassIgnores(ignoreFile string) (CheckFunc, error) {
-	ignmap := make(map[string]struct{})
-	if ignoreFile != "" {
-		igns, rerr := ioutil.ReadFile(ignoreFile)
-		if rerr != nil {
-			return nil, rerr
-		}
-		for _, word := range strings.Fields(string(igns)) {
-			ignmap[word] = struct{}{}
-		}
-	}
-	return func(word string) bool {
-		_, ok := ignmap[word]
-		return ok
-	}, nil
-}
-
-func WithPassNumbers() CheckFunc {
-	return func(word string) bool {
-		// contains a number?
-		for i := 0; i < len(word); i++ {
-			if word[i] >= '0' && word[i] <= '9' {
-				return true
-			}
-		}
-		return false
-	}
-}
-
 func (sc *Spellcheck) WithASpell() CheckFunc {
 	return func(word string) bool {
 		// aspell's check isn't thread-safe-- why!?
@@ -168,7 +125,7 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedLexeme, error) {
 			errc <- nil
 		}()
 		go func() {
-			sc.checkGoDocs(mux[1], badcommc)
+			checkGoDocs(mux[1], badcommc)
 			errc <- nil
 		}()
 	}
@@ -193,42 +150,6 @@ func (sc *Spellcheck) checkComments(lc <-chan *Lexeme, outc chan<- *CheckedLexem
 		if ct := sc.checkLexeme(comm); ct != nil {
 			outc <- ct
 		}
-	}
-}
-
-func (sc *Spellcheck) checkGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
-	tch := Filter(lc, DeclCommentFilter)
-	for {
-		comm, ok := <-tch
-		if !ok {
-			return
-		}
-		ll := []*Lexeme{}
-		for {
-			l, ok := <-tch
-			if !ok {
-				return
-			}
-			if l.tok == token.ILLEGAL {
-				break
-			}
-			ll = append(ll, l)
-		}
-		fields := strings.Fields(comm.lit)
-		if len(fields) < 2 {
-			continue
-		}
-
-		cmplex := ll[len(ll)-1]
-		if len(ll) >= 2 && ll[len(ll)-2].tok == token.IDENT {
-			cmplex = ll[len(ll)-2]
-		}
-		if fields[1] == cmplex.lit {
-			continue
-		}
-		cw := []CheckedWord{{fields[1], cmplex.lit}}
-		cl := &CheckedLexeme{comm, cw}
-		outc <- cl
 	}
 }
 
@@ -268,7 +189,7 @@ func (sc *Spellcheck) checkLexeme(ct *Lexeme) (ret *CheckedLexeme) {
 			continue
 		}
 		if ret == nil {
-			ret = &CheckedLexeme{ct, nil}
+			ret = &CheckedLexeme{ct, "spell", nil}
 		}
 		ret.words = append(ret.words, CheckedWord{word, sc.suggest(word)})
 	}
