@@ -29,7 +29,7 @@ func TestGoDocNoFuncNameReject(t *testing.T) {
 	reject(t, "godoc_test.go", "TestGoDocNoFuncNameReject")
 }
 
-// TestGoDocNoFuncNameReject has the wrong function name
+// TestGoDocNoFuncNameReject has the wrong name; want TestGoDocWrongFuncNameReject.
 func TestGoDocWrongFuncNameReject(t *testing.T) {
 	reject(t, "godoc_test.go", "TestGoDocWrongFuncNameReject")
 }
@@ -38,6 +38,8 @@ func TestGoDocWrongFuncNameReject(t *testing.T) {
 type godocStructReject struct {
 	// this will trigger TestGoDocNoFieldNameReject
 	oopsie int
+	// okthough will pass TestGoDocFieldNamePass
+	okthough int
 }
 
 // TestGoDocNoTypeNameReject rejects a type missing name in comments
@@ -48,6 +50,11 @@ func TestGoDocNoTypeNameReject(t *testing.T) {
 // TestGoDocNoFieldNameReject rejects a field missing name in comments
 func TestGoDocNoFieldNameReject(t *testing.T) {
 	reject(t, "godoc_test.go", "TestGoDocNoFieldNameReject")
+}
+
+// TestGoDocFieldNamePass accepts a godoc of a field
+func TestGoDocFieldNamePass(t *testing.T) {
+	reject(t, "godoc_test.go", "TestGoDocFieldNamePass")
 }
 
 // TestGoDocFuncPass will not trigger a warning

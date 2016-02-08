@@ -1,6 +1,7 @@
 package main
 
 import (
+	"go/token"
 	"io/ioutil"
 	"regexp"
 	"strings"
@@ -85,7 +86,7 @@ func (sc *Spellcheck) Close() {
 
 func (sc *Spellcheck) WithPassTokens() CheckFunc {
 	return func(word string) bool {
-		_, ok := sc.toks[strings.ToLower(word)]
+		_, ok := sc.toks[word]
 		return ok
 	}
 }
@@ -137,7 +138,7 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedLexeme, error) {
 	sc.toks = make(map[string]struct{})
 	for k, _ := range toks {
 		for _, field := range strings.Fields(k) {
-			sc.toks[strings.ToLower(field)] = struct{}{}
+			sc.toks[field] = struct{}{}
 		}
 	}
 
@@ -153,23 +154,27 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedLexeme, error) {
 
 	// process all comments
 	for _, p := range srcpaths {
-		go func(path string) {
-			commc, cerr := CommentChan(path)
-			if cerr != nil {
-				errc <- cerr
-				return
-			}
-			for comm := range commc {
-				if ct := sc.checkLexeme(comm); ct != nil {
-					badcommc <- ct
-				}
-			}
+		lc, err := LexemeChan(p)
+		if err != nil {
+			go func() {
+				errc <- err
+				errc <- nil
+			}()
+			continue
+		}
+		mux := LexemeMux(lc, 2)
+		go func() {
+			sc.checkComments(mux[0], badcommc)
 			errc <- nil
-		}(p)
+		}()
+		go func() {
+			sc.checkGoDocs(mux[1], badcommc)
+			errc <- nil
+		}()
 	}
 
 	// wait for completion of readers
-	for range srcpaths {
+	for i := 0; i < len(srcpaths)*2; i++ {
 		if curErr := <-errc; curErr != nil {
 			err = curErr
 		}
@@ -180,6 +185,51 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedLexeme, error) {
 	<-errc
 
 	return *badcomms, err
+}
+
+func (sc *Spellcheck) checkComments(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
+	ch := Filter(lc, CommentFilter)
+	for comm := range ch {
+		if ct := sc.checkLexeme(comm); ct != nil {
+			outc <- ct
+		}
+	}
+}
+
+func (sc *Spellcheck) checkGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
+	tch := Filter(lc, DeclCommentFilter)
+	for {
+		comm, ok := <-tch
+		if !ok {
+			return
+		}
+		ll := []*Lexeme{}
+		for {
+			l, ok := <-tch
+			if !ok {
+				return
+			}
+			if l.tok == token.ILLEGAL {
+				break
+			}
+			ll = append(ll, l)
+		}
+		fields := strings.Fields(comm.lit)
+		if len(fields) < 2 {
+			continue
+		}
+
+		cmplex := ll[len(ll)-1]
+		if len(ll) >= 2 && ll[len(ll)-2].tok == token.IDENT {
+			cmplex = ll[len(ll)-2]
+		}
+		if fields[1] == cmplex.lit {
+			continue
+		}
+		cw := []CheckedWord{{fields[1], cmplex.lit}}
+		cl := &CheckedLexeme{comm, cw}
+		outc <- cl
+	}
 }
 
 func (sc *Spellcheck) suggest(word string) string {

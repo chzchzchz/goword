@@ -8,15 +8,14 @@ import (
 )
 
 type Lexeme struct {
-	pos  token.Position
-	p    token.Pos
-	tok  token.Token
-	lit  string
-	prev *Lexeme
+	pos token.Position
+	p   token.Pos
+	tok token.Token
+	lit string
 }
 
 // LexemeChan streams a source file
-func LexemeChan(srcpath string) (chan *Lexeme, error) {
+func LexemeChan(srcpath string) (<-chan *Lexeme, error) {
 	fs := token.NewFileSet()
 	st, err := os.Stat(srcpath)
 	if err != nil {
@@ -32,45 +31,85 @@ func LexemeChan(srcpath string) (chan *Lexeme, error) {
 
 	lexc := make(chan *Lexeme)
 	go func() {
-		var prev *Lexeme
 		defer close(lexc)
 		for {
 			p, t, lit := s.Scan()
 			if t == token.EOF {
 				return
 			}
-			lexeme := &Lexeme{tf.Position(p), p, t, lit, prev}
+			lexeme := &Lexeme{tf.Position(p), p, t, lit}
 			lexc <- lexeme
-			prev = lexeme
 		}
 	}()
 
 	return lexc, nil
 }
 
-func Filter(lc chan *Lexeme, f func(*Lexeme) bool) chan *Lexeme {
+func Filter(lc <-chan *Lexeme, f func([]*Lexeme) State) <-chan *Lexeme {
 	retc := make(chan *Lexeme)
 	go func() {
+		ls := []*Lexeme{}
 		for l := range lc {
-			if f(l) {
-				retc <- l
-			} else {
-				l.prev = nil
+			ls = append(ls, l)
+			st := f(ls)
+			if st == Reject {
+				ls = nil
+				continue
 			}
+			if st != Accept {
+				continue
+			}
+			for _, v := range ls {
+				retc <- v
+			}
+			if len(ls) > 1 {
+				retc <- &Lexeme{tok: token.ILLEGAL}
+			}
+			ls = nil
 		}
 		close(retc)
 	}()
 	return retc
 }
 
-// CommentChan streams the comment tokens from a source file.
-func CommentChan(srcpath string) (chan *Lexeme, error) {
-	ch, err := LexemeChan(srcpath)
-	if err != nil {
-		return nil, err
+func CommentFilter(l []*Lexeme) State {
+	return dfa([]xfer{
+		{token.COMMENT: Accept},
+	}, l)
+}
+
+// DeclCommentFilter gives a comment header for a go declaration.
+// Declarations include:
+//	- types
+//	- functions
+//	- fields
+func DeclCommentFilter(l []*Lexeme) State {
+	return dfa([]xfer{
+		{token.COMMENT: 1},
+		{token.COMMENT: 1, token.TYPE: 2, token.FUNC: 3, token.IDENT: 5},
+		{token.IDENT: Accept},
+		{token.IDENT: Accept, token.LPAREN: 4},
+		{token.RPAREN: 5, token.ILLEGAL: 4},
+		{token.IDENT: Accept},
+	}, l)
+}
+
+func LexemeMux(lc <-chan *Lexeme, n int) []chan *Lexeme {
+	ret := []chan *Lexeme{}
+	for i := 0; i < n; i++ {
+		ret = append(ret, make(chan *Lexeme, 32))
 	}
-	return Filter(ch,
-		func(l *Lexeme) bool {
-			return l.tok == token.COMMENT
-		}), nil
+	go func() {
+		for l := range lc {
+			for i := 0; i < n; i++ {
+				ret[i] <- l
+			}
+
+		}
+		for i := 0; i < n; i++ {
+			close(ret[i])
+		}
+	}()
+
+	return ret
 }

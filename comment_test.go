@@ -11,7 +11,7 @@ func TestCommentMisspellReject(t *testing.T) {
 	reject(t, "comment_test.go", "TestCommentMisspell")
 }
 
-// TestCommentFuncName has a comment with a function name TestCommentFuncName
+// TestCommentFuncNamePass has a comment with a function name TestCommentFuncNamePass
 func TestCommentFuncNamePass(t *testing.T) {
 	accept(t, "comment_test.go", "TestCommentFuncName")
 }
