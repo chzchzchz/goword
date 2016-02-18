@@ -1,39 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
-	"sync"
-
-	"github.com/trustmaster/go-aspell"
 )
 
 type Spellcheck struct {
-	speller aspell.Speller
+	speller Speller
 	toks    map[string]struct{}
 	check   CheckFunc
-	mu      sync.Mutex
 	strips  []*regexp.Regexp
 }
 
 func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
-	opts := map[string]string{
-		"lang":           "en",
-		"filter":         "url",
-		"mode":           "url",
-		"encoding":       "ascii",
-		"guess":          "true",
-		"ignore":         "0",
-		"ignore-case":    "false",
-		"ignore-accents": "false",
-	}
-
 	igns, err := WithPassIgnores(ignoreFile)
-	if err != nil {
-		return nil, err
-	}
-
-	speller, err := aspell.NewSpeller(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -43,16 +24,25 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 		regexp.MustCompile("TODO[ ]*\\([a-z]*"),
 	}
 
+	hsp := NewHunSpeller()
+	if hsp == nil {
+		return nil, fmt.Errorf("bad hunspell")
+	}
+	asp, err := NewASpeller()
+	if err != nil {
+		return nil, err
+	}
+
 	sc = &Spellcheck{
 		strips:  strips,
-		speller: speller,
+		speller: NewMultiSpeller(hsp, asp),
 	}
 
 	checks := []CheckFunc{
 		sc.WithPassTokens(),
 		igns,
 		WithPassNumbers(),
-		sc.WithASpell(),
+		sc.WithSpeller(),
 	}
 
 	sc.check = func(w string) bool {
@@ -66,9 +56,7 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 	return sc, nil
 }
 
-func (sc *Spellcheck) Close() {
-	defer sc.speller.Delete()
-}
+func (sc *Spellcheck) Close() { sc.speller.Close() }
 
 func (sc *Spellcheck) WithPassTokens() CheckFunc {
 	return func(word string) bool {
@@ -77,13 +65,8 @@ func (sc *Spellcheck) WithPassTokens() CheckFunc {
 	}
 }
 
-func (sc *Spellcheck) WithASpell() CheckFunc {
-	return func(word string) bool {
-		// aspell's check isn't thread-safe-- why!?
-		sc.mu.Lock()
-		defer sc.mu.Unlock()
-		return sc.speller.Check(word)
-	}
+func (sc *Spellcheck) WithSpeller() CheckFunc {
+	return func(word string) bool { return sc.speller.Check(word) }
 }
 
 func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedLexeme, error) {
@@ -111,10 +94,10 @@ func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedLexeme, error) {
 
 	// process all comments
 	for _, p := range srcpaths {
-		lc, err := LexemeChan(p)
-		if err != nil {
+		lc, lerr := LexemeChan(p)
+		if lerr != nil {
 			go func() {
-				errc <- err
+				errc <- lerr
 				errc <- nil
 			}()
 			continue
@@ -157,14 +140,10 @@ func (sc *Spellcheck) suggest(word string) string {
 	if sc.check(word) {
 		return ""
 	}
-	// aspell's check isn't thread-safe-- why!?
-	sc.mu.Lock()
-	suggest := sc.speller.Suggest(word)
-	sc.mu.Unlock()
-	if len(suggest) == 0 {
-		return ""
+	if sugg := sc.speller.Suggest(word); len(sugg) > 0 {
+		return sugg[0]
 	}
-	return suggest[0]
+	return ""
 }
 
 func (sc *Spellcheck) tokenize(s string) []string {

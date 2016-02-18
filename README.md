@@ -11,7 +11,12 @@ to give false positives.
 
 ## Requirements
 
-`goword` links against [GNU Aspell](http://aspell.net/) and hence requires the Aspell development headers to be installed to build.
+`goword` links against:
+* [GNU Aspell](http://aspell.net/)
+* [Hunspell](http://hunspell.github.io/)
+
+and hence requires the corresponding development headers to build.
+
 
 ## Running
 
