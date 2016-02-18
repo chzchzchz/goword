@@ -56,7 +56,9 @@ type hunspeller struct {
 }
 
 func NewHunSpeller() Speller {
-	sp := hunspellgo.Hunspell("/usr/share/hunspell", "/usr/share/hunspell")
+	sp := hunspellgo.Hunspell(
+		"/usr/share/myspell/en_US.aff",
+		"/usr/share/myspell/en_US.dic")
 	if sp == nil {
 		return nil
 	}
