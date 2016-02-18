@@ -10,7 +10,7 @@ goword: $(SRCS)
 .PHONY: test
 test: test.out
 	grep -- "--- PASS" test.out
-	grep -- "--- FAIL"  test.out
+	grep -- "--- FAIL" test.out || true
 
 test.out: goword $(TESTSRCS)
 	go test -v >$@ 2>&1 || cat $@
