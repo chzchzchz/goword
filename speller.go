@@ -70,7 +70,9 @@ func (s *hunspeller) Check(w string) bool {
 }
 
 func (s *hunspeller) Suggest(w string) []string {
-	return s.sp.Suggest(w)
+	// temporarily disable suggester
+	// return s.sp.Suggest(w)
+	return nil
 }
 
 func (s *hunspeller) Close() { s.sp = nil }
