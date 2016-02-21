@@ -70,7 +70,16 @@ func TestGoDocMultiLinePass(t *testing.T) {
 
 // this comment not part of the function documentation
 
-// TestGoDocCommentBreak will not trigger a warning
-func TestGoDocCommentBreak(t *testing.T) {
+// TestGoDocCommentBreakPass will not trigger a warning
+func TestGoDocCommentBreakPass(t *testing.T) {
 	accept(t, "godoc_test.go", "TestGoDocCommentBreak")
+}
+
+type godocSideComment struct {
+	sideComment int // a side comment isn't a godoc
+	unrelated   int
+}
+
+func TestGoDocSideCommentPass(t *testing.T) {
+	accept(t, "godoc_test.go", "TestGoDocSideCommentPass")
 }
