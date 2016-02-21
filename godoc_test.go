@@ -72,4 +72,5 @@ func TestGoDocMultiLinePass(t *testing.T) {
 
 // TestGoDocCommentBreak will not trigger a warning
 func TestGoDocCommentBreak(t *testing.T) {
+	accept(t, "godoc_test.go", "TestGoDocCommentBreak")
 }
