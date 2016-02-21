@@ -20,16 +20,16 @@ func checkGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 			ll = append(ll, l)
 		}
 
-		comm := beginGoDoc(ll)
+		godoc := beginGoDoc(ll)
 
 		// does the comment line up with the next line?
 		after := afterGoDoc(ll)
-		if after.pos.Column != comm.pos.Column {
+		if after.pos.Column != godoc.pos.Column {
 			continue
 		}
 
 		// does the comment have a token for documentation?
-		fields := strings.Fields(comm.lit)
+		fields := strings.Fields(godoc.lit)
 		if len(fields) < 2 {
 			continue
 		}
@@ -44,8 +44,12 @@ func checkGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 		}
 
 		// bad godoc
+		label := "godoc-local"
+		if strings.ToUpper(cmplex.lit)[0] == cmplex.lit[0] {
+			label = "godoc-export"
+		}
 		cw := []CheckedWord{{fields[1], cmplex.lit}}
-		cl := &CheckedLexeme{comm, "godoc", cw}
+		cl := &CheckedLexeme{godoc, label, cw}
 		outc <- cl
 	}
 }
