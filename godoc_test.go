@@ -94,3 +94,9 @@ func TestGoDocSideCommentPass(t *testing.T) {
 func TestGoDocSkipLinesPass(t *testing.T) {
 	accept(t, "godoc_test.go", "TestGoDocSkipLinesPass")
 }
+
+// it's OK not to match TestGoDocSkipAndMissingPass since blank below
+
+func TestGoDocSkipAndMissingPass(t *testing.T) {
+	accept(t, "godoc_test.go", "TestGoDocSkipAndMissingPass")
+}
