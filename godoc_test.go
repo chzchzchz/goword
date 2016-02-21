@@ -83,3 +83,14 @@ type godocSideComment struct {
 func TestGoDocSideCommentPass(t *testing.T) {
 	accept(t, "godoc_test.go", "TestGoDocSideCommentPass")
 }
+
+// TestGoDocSkipLinesPass will not trigger a warning
+//
+// even though there are multiple lines
+// that could
+//
+// break the checker's
+// ability to parse
+func TestGoDocSkipLinesPass(t *testing.T) {
+	accept(t, "godoc_test.go", "TestGoDocSkipLinesPass")
+}
