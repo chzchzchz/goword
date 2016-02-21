@@ -67,3 +67,9 @@ func TestGoDocFuncPass(t *testing.T) {
 func TestGoDocMultiLinePass(t *testing.T) {
 	accept(t, "godoc_test.go", "TestGoDocMultiLinePass")
 }
+
+// this comment not part of the function documentation
+
+// TestGoDocCommentBreak will not trigger a warning
+func TestGoDocCommentBreak(t *testing.T) {
+}

@@ -8,10 +8,6 @@ import (
 func checkGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 	tch := Filter(lc, DeclCommentFilter)
 	for {
-		comm, ok := <-tch
-		if !ok {
-			return
-		}
 		ll := []*Lexeme{}
 		for {
 			l, ok := <-tch
@@ -23,6 +19,20 @@ func checkGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 			}
 			ll = append(ll, l)
 		}
+
+		// get last comment block
+		var comm *Lexeme
+		wantLine := 0
+		for _, l := range ll {
+			if l.tok != token.COMMENT {
+				break
+			}
+			if l.pos.Line != wantLine {
+				comm = l
+			}
+			wantLine = l.pos.Line + 1
+		}
+
 		fields := strings.Fields(comm.lit)
 		if len(fields) < 2 {
 			continue
