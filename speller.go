@@ -70,9 +70,7 @@ func (s *hunspeller) Check(w string) bool {
 }
 
 func (s *hunspeller) Suggest(w string) []string {
-	// temporarily disable suggester
-	// return s.sp.Suggest(w)
-	return nil
+	return s.sp.Suggest(w)
 }
 
 func (s *hunspeller) Close() { s.sp = nil }
@@ -100,7 +98,9 @@ func (s *multispeller) Check(w string) bool {
 
 func (s *multispeller) Suggest(w string) (ret []string) {
 	for _, sp := range s.sp {
-		ret = append(ret, sp.Suggest(w)...)
+		if ret = sp.Suggest(w); len(ret) != 0 {
+			break
+		}
 	}
 	return ret
 }

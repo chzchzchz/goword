@@ -35,7 +35,7 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 
 	sc = &Spellcheck{
 		strips:  strips,
-		speller: NewMultiSpeller(hsp, asp),
+		speller: NewMultiSpeller(asp, hsp),
 	}
 
 	checks := []CheckFunc{
