@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+type CheckPipe func(lc <-chan *Lexeme, outc chan<- *CheckedLexeme)
+
 type CheckFunc func(string) bool
 
 type CheckedWord struct {
@@ -45,4 +47,63 @@ func WithPassNumbers() CheckFunc {
 		}
 		return false
 	}
+}
+
+func Check(srcs []string, cps []CheckPipe) ([]*CheckedLexeme, error) {
+	var err error
+	errc := make(chan error)
+	badcommc := make(chan *CheckedLexeme)
+	badcomms := &[]*CheckedLexeme{}
+	go func() {
+		for comm := range badcommc {
+			*badcomms = append(*badcomms, comm)
+		}
+		errc <- nil
+	}()
+
+	// process all files under all checkers
+	for _, p := range srcs {
+		lc, lerr := LexemeChan(p)
+		if lerr != nil {
+			go func() {
+				errc <- lerr
+				errc <- nil
+			}()
+			continue
+		}
+		mux := LexemeMux(lc, len(cps))
+		for i := range cps {
+			go func(k int) {
+				cps[k](mux[k], badcommc)
+				errc <- nil
+			}(i)
+		}
+	}
+
+	// wait for completion of readers
+	for i := 0; i < len(srcs)*len(cps); i++ {
+		if curErr := <-errc; curErr != nil {
+			err = curErr
+		}
+	}
+
+	// wait to collect all bad comments
+	close(badcommc)
+	<-errc
+
+	return *badcomms, err
+}
+
+func CheckAll(paths []string) ([]*CheckedLexeme, error) {
+	sp, err := newSpellCheck(paths, "")
+	if err != nil {
+		return nil, err
+	}
+	defer sp.Close()
+	cps := []CheckPipe{CheckGoDocs, sp.Check()}
+	cts, cerr := Check(paths, cps)
+	if cerr != nil {
+		return nil, cerr
+	}
+	return cts, nil
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func checkGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
+func CheckGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 	tch := Filter(lc, DeclCommentFilter)
 	for {
 		ll := []*Lexeme{}

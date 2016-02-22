@@ -8,13 +8,11 @@ import (
 
 // TestSelfPass makes sure all the code in this project passes spell checking.
 func TestSelfPass(t *testing.T) {
-	paths := gopaths(".")
-	sp, err := NewSpellcheck("")
+	cts, err := CheckAll(gopaths("."))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sp.Close()
-	cts, err := sp.Check(paths)
+
 	rejects := 0
 	for _, ct := range cts {
 		if strings.Contains(ct.ctok.lit, "Reject") {

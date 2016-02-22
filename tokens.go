@@ -7,8 +7,10 @@ import (
 	"os"
 )
 
+type TokenSet map[string]struct{}
+
 // GoTokens gets the tokens from set of source files.
-func GoTokens(srcpaths []string) (toks map[string]struct{}, err error) {
+func GoTokens(srcpaths []string) (toks TokenSet, err error) {
 	tokc := make(chan []string)
 	errc := make(chan error)
 
@@ -28,7 +30,7 @@ func GoTokens(srcpaths []string) (toks map[string]struct{}, err error) {
 		files++
 	}
 
-	toks = make(map[string]struct{})
+	toks = make(TokenSet)
 	for i := 0; i < files; i++ {
 		if curToks := <-tokc; curToks != nil {
 			for _, tok := range curToks {
@@ -50,7 +52,7 @@ func fileTokens(tf *token.File) (toks []string, err error) {
 	}
 	s := &scanner.Scanner{}
 	s.Init(tf, src, nil, 0)
-	tokmap := make(map[string]struct{})
+	tokmap := make(TokenSet)
 	for {
 		_, tok, lit := s.Scan()
 		if tok == token.EOF {

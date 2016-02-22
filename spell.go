@@ -13,7 +13,7 @@ type Spellcheck struct {
 	strips  []*regexp.Regexp
 }
 
-func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
+func NewSpellcheck(ts TokenSet, ignoreFile string) (sc *Spellcheck, err error) {
 	igns, err := WithPassIgnores(ignoreFile)
 	if err != nil {
 		return nil, err
@@ -35,6 +35,7 @@ func NewSpellcheck(ignoreFile string) (sc *Spellcheck, err error) {
 
 	sc = &Spellcheck{
 		strips:  strips,
+		toks:    ts,
 		speller: NewMultiSpeller(asp, hsp),
 	}
 
@@ -69,62 +70,10 @@ func (sc *Spellcheck) WithSpeller() CheckFunc {
 	return func(word string) bool { return sc.speller.Check(word) }
 }
 
-func (sc *Spellcheck) Check(srcpaths []string) ([]*CheckedLexeme, error) {
-	toks, err := GoTokens(srcpaths)
-	if err != nil {
-		return nil, err
+func (sc *Spellcheck) Check() CheckPipe {
+	return func(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
+		sc.checkComments(lc, outc)
 	}
-
-	sc.toks = make(map[string]struct{})
-	for k, _ := range toks {
-		for _, field := range strings.Fields(k) {
-			sc.toks[field] = struct{}{}
-		}
-	}
-
-	errc := make(chan error)
-	badcommc := make(chan *CheckedLexeme)
-	badcomms := &[]*CheckedLexeme{}
-	go func() {
-		for comm := range badcommc {
-			*badcomms = append(*badcomms, comm)
-		}
-		errc <- nil
-	}()
-
-	// process all comments
-	for _, p := range srcpaths {
-		lc, lerr := LexemeChan(p)
-		if lerr != nil {
-			go func() {
-				errc <- lerr
-				errc <- nil
-			}()
-			continue
-		}
-		mux := LexemeMux(lc, 2)
-		go func() {
-			sc.checkComments(mux[0], badcommc)
-			errc <- nil
-		}()
-		go func() {
-			checkGoDocs(mux[1], badcommc)
-			errc <- nil
-		}()
-	}
-
-	// wait for completion of readers
-	for i := 0; i < len(srcpaths)*2; i++ {
-		if curErr := <-errc; curErr != nil {
-			err = curErr
-		}
-	}
-
-	// wait to collect all bad comments
-	close(badcommc)
-	<-errc
-
-	return *badcomms, err
 }
 
 func (sc *Spellcheck) checkComments(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {

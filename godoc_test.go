@@ -10,16 +10,11 @@ type docCheck struct {
 
 func (dc *docCheck) get(t *testing.T, path string) *docCheck {
 	if len(dc.ct) == 0 {
-		sp, err := NewSpellcheck("")
+		cts, err := CheckAll([]string{path})
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer sp.Close()
-		ct, err := sp.Check([]string{path})
-		if err != nil {
-			t.Fatal(err)
-		}
-		dc.ct = ct
+		dc.ct = cts
 	}
 	return dc
 }
