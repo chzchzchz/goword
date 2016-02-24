@@ -78,12 +78,8 @@ func CommentFilter(l []*Lexeme) State {
 	}, l)
 }
 
-// DeclCommentFilter gives a comment header for a go declaration.
-// Declarations include:
-//	- types
-//	- functions
-//	- fields
-func DeclCommentFilter(l []*Lexeme) State {
+// DeclRootCommentFilter gives a comment header for types and functions.
+func DeclRootCommentFilter(l []*Lexeme) State {
 	return dfa([]xfer{
 		{token.COMMENT: 1},
 		{token.COMMENT: 1, token.TYPE: 2, token.FUNC: 3, token.IDENT: 5},
@@ -91,6 +87,25 @@ func DeclCommentFilter(l []*Lexeme) State {
 		{token.IDENT: Accept, token.LPAREN: 4},
 		{token.RPAREN: 5, token.ILLEGAL: 4},
 		{token.IDENT: Accept},
+	}, l)
+}
+
+// DeclTypeFilter captures the contents of types.
+func DeclTypeFilter(l []*Lexeme) State {
+	return dfa([]xfer{
+		{token.TYPE: 1},
+		{token.IDENT: 2},
+		{token.INTERFACE: 3, token.STRUCT: 3},
+		{token.LBRACE: 4},
+		{token.RBRACE: Accept, token.ILLEGAL: 4},
+	}, l)
+}
+
+// DeclIdentCommentFilter captures comments preceding an identifier.
+func DeclIdentCommentFilter(l []*Lexeme) State {
+	return dfa([]xfer{
+		{token.COMMENT: 1},
+		{token.COMMENT: 1, token.IDENT: Accept},
 	}, l)
 }
 

@@ -95,3 +95,36 @@ func TestGoDocSkipLinesPass(t *testing.T) {
 func TestGoDocSkipAndMissingPass(t *testing.T) {
 	accept(t, "godoc_test.go", "TestGoDocSkipAndMissingPass")
 }
+
+type hello interface {
+	// this should trigger TestInterfaceFuncReject
+	f() int
+}
+
+func TestInterfaceFuncReject(t *testing.T) {
+	reject(t, "godoc_test.go", "TestInterfaceFuncReject")
+}
+
+type morestruct struct {
+	// this should trigger TestStructFieldReject
+	hello int
+	// this should trigger TestStructFieldPtrReject
+	hello2 *int
+	// this should trigger TestStructFieldChanReject
+	hello3 chan int
+	// this should trigger TestStructFieldRChanReject
+	hello4 <-chan int
+}
+
+func TestStructFieldReject(t *testing.T) {
+	reject(t, "godoc_test.go", "TestStructFieldReject")
+}
+func TestStructFieldPtrReject(t *testing.T) {
+	reject(t, "godoc_test.go", "TestStructFieldPtrReject")
+}
+func TestStructFieldChanReject(t *testing.T) {
+	reject(t, "godoc_test.go", "TestStructFieldChanReject")
+}
+func TestStructFieldRChanReject(t *testing.T) {
+	reject(t, "godoc_test.go", "TestStructFieldRChanReject")
+}

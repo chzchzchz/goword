@@ -3,10 +3,27 @@ package main
 import (
 	"go/token"
 	"strings"
+	"sync"
 )
 
 func CheckGoDocs(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
-	tch := Filter(lc, DeclCommentFilter)
+	var wg sync.WaitGroup
+	mux := LexemeMux(lc, 2)
+	wg.Add(2)
+	go func() {
+		ch := Filter(mux[0], DeclRootCommentFilter)
+		checkGoDoc(ch, outc)
+		wg.Done()
+	}()
+	go func() {
+		ch := Filter(Filter(mux[1], DeclTypeFilter), DeclIdentCommentFilter)
+		checkGoDoc(ch, outc)
+		wg.Done()
+	}()
+	wg.Wait()
+}
+
+func checkGoDoc(tch <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 	for {
 		ll := []*Lexeme{}
 		for {
