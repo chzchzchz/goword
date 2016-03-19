@@ -55,9 +55,30 @@ func checkGoDoc(tch <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 			continue
 		}
 
+		// check package
+		if ll[len(ll)-2].tok == token.PACKAGE {
+			hasPkg := fields[1] == "Package"
+			hasName := fields[2] == ll[len(ll)-1].lit
+			switch {
+			case !hasPkg && !hasName:
+				cw := []CheckedWord{{fields[1], "// Package " + ll[len(ll)-1].lit}}
+				cl := &CheckedLexeme{godoc[0], "godoc-export", cw}
+				outc <- cl
+			case !hasPkg:
+				cw := []CheckedWord{{fields[1], "Package"}}
+				cl := &CheckedLexeme{godoc[0], "godoc-export", cw}
+				outc <- cl
+			case !hasName:
+				cw := []CheckedWord{{fields[2], ll[len(ll)-1].lit}}
+				cl := &CheckedLexeme{godoc[0], "godoc-export", cw}
+				outc <- cl
+			}
+			continue
+		}
+
 		// what token should the documentation match?
 		cmplex := ll[len(ll)-1]
-		if len(ll) >= 2 && ll[len(ll)-2].tok == token.IDENT {
+		if ll[len(ll)-2].tok == token.IDENT {
 			cmplex = ll[len(ll)-2]
 		}
 		if fields[1] == cmplex.lit {

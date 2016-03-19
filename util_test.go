@@ -1,3 +1,4 @@
+// Package maij should trigger TestGoDocPackageNameReject
 package main
 
 import (

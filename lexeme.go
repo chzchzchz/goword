@@ -82,7 +82,13 @@ func CommentFilter(l []*Lexeme) State {
 func DeclRootCommentFilter(l []*Lexeme) State {
 	return dfa([]xfer{
 		{token.COMMENT: 1},
-		{token.COMMENT: 1, token.TYPE: 2, token.FUNC: 3, token.IDENT: 5},
+		{
+			token.COMMENT: 1,
+			token.TYPE:    2,
+			token.FUNC:    3,
+			token.IDENT:   5,
+			token.PACKAGE: 2,
+		},
 		{token.IDENT: Accept},
 		{token.IDENT: Accept, token.LPAREN: 4},
 		{token.RPAREN: 5, token.ILLEGAL: 4},

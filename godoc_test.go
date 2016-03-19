@@ -1,3 +1,4 @@
+// ackage should trigger TestGoDocPackageReject
 package main
 
 import (
@@ -127,4 +128,12 @@ func TestStructFieldChanReject(t *testing.T) {
 }
 func TestStructFieldRChanReject(t *testing.T) {
 	reject(t, "godoc_test.go", "TestStructFieldRChanReject")
+}
+
+func TestGoDocPackageReject(t *testing.T) {
+	reject(t, "godoc_test.go", "TestGoDocPackageReject")
+}
+
+func TestGoDocPackageNameReject(t *testing.T) {
+	reject(t, "util_test.go", "TestGoDocPackageNameReject")
 }
