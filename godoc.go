@@ -57,6 +57,11 @@ func checkGoDoc(tch <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 
 		// check package
 		if ll[len(ll)-2].tok == token.PACKAGE {
+			if ll[len(ll)-1].lit == "main" {
+				// main exemption for describing command line utilities
+				continue
+			}
+
 			hasPkg := fields[1] == "Package"
 			hasName := fields[2] == ll[len(ll)-1].lit
 			switch {

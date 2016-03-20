@@ -137,3 +137,7 @@ func TestGoDocPackageReject(t *testing.T) {
 func TestGoDocPackageNameReject(t *testing.T) {
 	reject(t, "util_test.go", "TestGoDocPackageNameReject")
 }
+
+func TestGoDocPackageMain(t *testing.T) {
+	accept(t, "goword.go", "TestGoDocPackageMain")
+}
