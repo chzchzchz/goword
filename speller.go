@@ -55,14 +55,20 @@ type hunspeller struct {
 	sp *hunspellgo.Hunhandle
 }
 
+// hunspellPaths has a list of paths where dictionaries might be
+// in future, pass path through command line argument
+var hunspellPaths = []string{
+	"/usr/share/myspell",
+	"/usr/share/hunspell",
+}
+
 func NewHunSpeller() Speller {
-	sp := hunspellgo.Hunspell(
-		"/usr/share/myspell/en_US.aff",
-		"/usr/share/myspell/en_US.dic")
-	if sp == nil {
-		return nil
+	for _, p := range hunspellPaths {
+		if sp := hunspellgo.Hunspell(p+"/en_US.aff", p+"/en_US.dic"); sp != nil {
+			return &hunspeller{sp}
+		}
 	}
-	return &hunspeller{sp}
+	return nil
 }
 
 func (s *hunspeller) Check(w string) bool {
