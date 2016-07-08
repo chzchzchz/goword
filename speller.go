@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"sync"
 
 	"github.com/akhenakh/hunspellgo"
@@ -64,7 +65,14 @@ var hunspellPaths = []string{
 
 func NewHunSpeller() Speller {
 	for _, p := range hunspellPaths {
-		if sp := hunspellgo.Hunspell(p+"/en_US.aff", p+"/en_US.dic"); sp != nil {
+		aff, dic := p+"/en_US.aff", p+"/en_US.dic"
+		if _, err := os.Stat(aff); err != nil {
+			continue
+		}
+		if _, err := os.Stat(dic); err != nil {
+			continue
+		}
+		if sp := hunspellgo.Hunspell(aff, dic); sp != nil {
 			return &hunspeller{sp}
 		}
 	}
