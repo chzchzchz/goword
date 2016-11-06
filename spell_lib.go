@@ -1,3 +1,5 @@
+// +build spell
+
 package main
 
 import (
