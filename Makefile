@@ -5,7 +5,7 @@ SRCS=$(filter-out %_test.go, $(wildcard *.go */*.go))
 TESTSRCS=$(wildcard *_test.go */*_test.go) 
 
 goword: $(SRCS)
-	go build -v
+	go build -tags spell -v
 
 .PHONY: test
 test: test.out
@@ -13,4 +13,4 @@ test: test.out
 	grep -- "--- FAIL" test.out || true
 
 test.out: goword $(TESTSRCS)
-	go test -v >$@ 2>&1 || cat $@
+	go test -tags spell -v >$@ 2>&1 || cat $@
