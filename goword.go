@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -57,6 +58,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", cerr)
 		os.Exit(1)
 	}
+	sort.Sort(CheckedLexemes(ct))
 	for _, c := range ct {
 		fmt.Printf("%s.%d: %s (%s: %s -> %s?)\n",
 			c.ctok.pos.Filename,
