@@ -20,6 +20,20 @@ type CheckedLexeme struct {
 	words []CheckedWord
 }
 
+type CheckedLexemes []*CheckedLexeme
+
+// Implement sort.Interface.
+func (s CheckedLexemes) Len() int { return len(s) }
+func (s CheckedLexemes) Less(i, j int) bool {
+	return s[i].ctok.pos.Filename < s[j].ctok.pos.Filename ||
+		(s[i].ctok.pos.Filename == s[j].ctok.pos.Filename &&
+			s[i].ctok.pos.Line < s[j].ctok.pos.Line) ||
+		(s[i].ctok.pos.Filename == s[j].ctok.pos.Filename &&
+			s[i].ctok.pos.Line == s[j].ctok.pos.Line &&
+			s[i].ctok.pos.Column < s[j].ctok.pos.Column)
+}
+func (s CheckedLexemes) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
 func WithPassIgnores(ignoreFile string) (CheckFunc, error) {
 	ignmap := make(map[string]struct{})
 	if ignoreFile != "" {
@@ -53,10 +67,10 @@ func Check(srcs []string, cps []CheckPipe) ([]*CheckedLexeme, error) {
 	var err error
 	errc := make(chan error)
 	badcommc := make(chan *CheckedLexeme)
-	badcomms := &[]*CheckedLexeme{}
+	badcomms := []*CheckedLexeme{}
 	go func() {
 		for comm := range badcommc {
-			*badcomms = append(*badcomms, comm)
+			badcomms = append(badcomms, comm)
 		}
 		errc <- nil
 	}()
@@ -91,7 +105,7 @@ func Check(srcs []string, cps []CheckPipe) ([]*CheckedLexeme, error) {
 	close(badcommc)
 	<-errc
 
-	return *badcomms, err
+	return badcomms, err
 }
 
 func CheckAll(paths []string) ([]*CheckedLexeme, error) {
