@@ -22,7 +22,8 @@ type CheckedLexeme struct {
 
 type CheckedLexemes []*CheckedLexeme
 
-// Implement sort.Interface.
+// sort.Interface implementation:
+
 func (s CheckedLexemes) Len() int { return len(s) }
 func (s CheckedLexemes) Less(i, j int) bool {
 	return s[i].ctok.pos.Filename < s[j].ctok.pos.Filename ||
