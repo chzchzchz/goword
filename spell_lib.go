@@ -15,6 +15,10 @@ type Spellcheck struct {
 	strips  []*regexp.Regexp
 }
 
+// isCodeRE matches assignment, function calls, imports, and braces.
+var isCodeRE *regexp.Regexp = regexp.MustCompile(
+	"(:=|[a-zA-Z1-9]\\(|{|}|[a-z]/[a-z]|\\[)")
+
 func NewSpellcheck(ts TokenSet, ignoreFile string) (sc *Spellcheck, err error) {
 	igns, err := WithPassIgnores(ignoreFile)
 	if err != nil {
@@ -81,10 +85,31 @@ func (sc *Spellcheck) Check() CheckPipe {
 func (sc *Spellcheck) checkComments(lc <-chan *Lexeme, outc chan<- *CheckedLexeme) {
 	ch := Filter(lc, CommentFilter)
 	for comm := range ch {
+		if isCodeComment(comm.lit) {
+			continue
+		}
 		if ct := sc.checkLexeme(comm); ct != nil {
 			outc <- ct
 		}
 	}
+}
+
+// isCodeComment finds comments that contain example code as indented blocks:
+// 	abc, def := indented.with(spaceTab)
+//	a, b := tabOnly()
+//      if xyz != nil { panic(indentWithSpace) }
+// Since it's an example, sometimes the identifiers aren't in the
+// code, which will cause a spell check false positive.
+func isCodeComment(s string) bool {
+	hasPfx := false
+	for _, pfx := range []string{"//  ", "// \t", "//\t"} {
+		if hasPfx = strings.HasPrefix(s, pfx); hasPfx {
+			break
+		}
+	}
+	// Check if line seems to be code to avoid false negatives on
+	// indented comments like lists.
+	return hasPfx && isCodeRE.MatchString(s)
 }
 
 func (sc *Spellcheck) suggest(word string) string {
