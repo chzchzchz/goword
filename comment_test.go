@@ -30,3 +30,11 @@ func TestTODOPass(t *testing.T) {
 func TestTODOSpacePass(t *testing.T) {
 	accept(t, "comment_test.go", "TestTODOSpacePass")
 }
+
+// TestPackage_underscoreTest checks the spell checker will not
+// tokenize identifiers with underscores; the individual components
+// of the function name will not pass spell check, but taken together
+// they match a function name pulled from the source.
+func TestPackage_underscoreTest(t *testing.T) {
+	accept(t, "comment_test.go", "TestPackage_underscoreTest")
+}
